@@ -29,7 +29,7 @@ In the following example, we will show you how to use Isaac Lab Mimic to generat
 The number of demonstrations can be increased or decreased, 1000 demonstrations have been shown to provide good training results for this task.
 
 Additionally, the number of environments in the ``--num_envs`` parameter can be adjusted to speed up data generation.
-The suggested number of 10 can be executed on a moderate laptop GPU.
+The suggested number of 10 can be executed on a moderate laptop CPU.
 On a more powerful desktop machine, use a larger number of environments for a significant speedup of this step.
 
 Cosmos Augmentation
@@ -77,8 +77,8 @@ Example usage for the cube stacking task:
 .. code:: bash
 
     python scripts/tools/hdf5_to_mp4.py \
-    --input_file datasets/mimic_generated_dataset.hdf5 \
-    --output_dir datasets/mimic_generated_dataset_mp4
+    --input_file datasets/mimic_dataset_1k.hdf5 \
+    --output_dir datasets/mimic_dataset_1k_mp4
 
 Running Cosmos for Visual Augmentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,14 +92,14 @@ We use the RGB, depth and shaded segmentation videos from the previous step as i
    :align: center
    :alt: RGB, depth and segmentation control inputs to Cosmos
 
-We provide an example augmentation output from `Cosmos Transfer1 <https://github.com/nvidia-cosmos/cosmos-transfer1>`_ below:
+We provide an example augmentation output from `Cosmos Transfer1 <https://github.com/nvidia-cosmos/cosmos-transfer1/tree/e4055e39ee9c53165e85275bdab84ed20909714a>`_ below:
 
 .. figure:: https://download.isaacsim.omniverse.nvidia.com/isaaclab/images/cosmos_output.gif
    :width: 100%
    :align: center
    :alt: Cosmos Transfer1 augmentation output
 
-We recommend using the `Cosmos Transfer1 <https://github.com/nvidia-cosmos/cosmos-transfer1>`_ model for visual augmentation as we found it to produce the best results in the form of a highly diverse dataset with a wide range of visual variations. You can refer to `this example <https://github.com/nvidia-cosmos/cosmos-transfer1/blob/main/examples/inference_cosmos_transfer1_7b.md#example-2-multimodal-control>`_ for reference on how to use Transfer1 for this usecase. We further recommend the following settings to be used with the Transfer1 model for this task:
+We recommend using the `Cosmos Transfer1 <https://github.com/nvidia-cosmos/cosmos-transfer1/tree/e4055e39ee9c53165e85275bdab84ed20909714a>`_ model for visual augmentation as we found it to produce the best results in the form of a highly diverse dataset with a wide range of visual variations. You can refer to the installation instructions `here <https://github.com/nvidia-cosmos/cosmos-transfer1/blob/e4055e39ee9c53165e85275bdab84ed20909714a/INSTALL.md#environment-setup>`_, the checkpoint download instructions `here <https://github.com/nvidia-cosmos/cosmos-transfer1/blob/e4055e39ee9c53165e85275bdab84ed20909714a/examples/inference_cosmos_transfer1_7b.md#download-checkpoints>`_ and `this example <https://github.com/nvidia-cosmos/cosmos-transfer1/blob/e4055e39ee9c53165e85275bdab84ed20909714a/examples/inference_cosmos_transfer1_7b.md#example-2-multimodal-control>`_ for reference on how to use Transfer1 for this usecase. We further recommend the following settings to be used with the Transfer1 model for this task:
 
 .. rubric:: Hyperparameters
 
@@ -109,16 +109,12 @@ We recommend using the `Cosmos Transfer1 <https://github.com/nvidia-cosmos/cosmo
 
     * - ``negative_prompt``
       - "The video captures a game playing, with bad crappy graphics and cartoonish frames. It represents a recording of old outdated games. The images are very pixelated and of poor CG quality. There are many subtitles in the footage. Overall, the video is unrealistic and appears cg. Plane background."
-    * - ``positive_prompt``
-      - "realistic, photorealistic, high fidelity, varied lighting, varied background"
     * - ``sigma_max``
       - 50
     * - ``control_weight``
       - "0.3,0.3,0.6,0.7"
     * - ``hint_key``
       - "blur,canny,depth,segmentation"
-    * - ``control_input_preset_strength``
-      - "low"
 
 Another crucial aspect to get good augmentations is the set of prompts used to control the Cosmos generation. We provide a script, ``cosmos_prompt_gen.py``, to construct prompts from a set of carefully chosen templates that handle various aspects of the augmentation process.
 
@@ -158,6 +154,47 @@ In case you want to create your own prompts, we suggest you refer to the followi
 
 4. It is vital to include details on key aspects of the input control video(s) that should be retained or left unchanged. In our prompts, we very clearly mention that the cube colors should be left unchanged such that the bottom cube is blue, the middle is red and the top is green. Note that we not only mention what should be left unchanged but also give details on what form that aspect currently has.
 
+Example command to use the Cosmos Transfer1 model for this usecase:
+
+.. code:: bash
+
+    export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:=0}"
+    export CHECKPOINT_DIR="${CHECKPOINT_DIR:=./checkpoints}"
+    export NUM_GPU="${NUM_GPU:=1}"
+    PYTHONPATH=$(pwd) torchrun --nproc_per_node=$NUM_GPU --nnodes=1 --node_rank=0 cosmos_transfer1/diffusion/inference/transfer.py \
+        --checkpoint_dir $CHECKPOINT_DIR \
+        --video_save_folder outputs/cosmos_dataset_1k_mp4 \
+        --controlnet_specs ./controlnet_specs/demo_0.json \
+        --offload_text_encoder_model \
+        --offload_guardrail_models \
+        --num_gpus $NUM_GPU
+
+Example ``./controlnet_specs/demo_0.json`` json file to use with the above command:
+
+.. code:: json
+
+    {
+        "prompt": "A robotic arm is picking up and stacking cubes inside a foggy industrial scrapyard at dawn, surrounded by piles of old robotic parts and twisted metal. The background includes large magnetic cranes, rusted conveyor belts, and flickering yellow floodlights struggling to penetrate the fog. The robot arm is bright teal with a glossy surface and silver stripes on the outer edges; the joints rotate smoothly and the pistons reflect a pale cyan hue. The robot arm is mounted on a table that is light oak wood with a natural grain pattern and a glossy varnish that reflects overhead lights softly; small burn marks dot one corner. The arm is connected to the base mounted on the table. The bottom cube is deep blue, the second cube is bright red, and the top cube is vivid green, maintaining their correct order after stacking. Sunlight pouring in from a large, open window bathes the table and robotic arm in a warm golden light. The shadows are soft, and the scene feels natural and inviting with a slight contrast between light and shadow.",
+        "negative_prompt": "The video captures a game playing, with bad crappy graphics and cartoonish frames. It represents a recording of old outdated games. The images are very pixelated and of poor CG quality. There are many subtitles in the footage. Overall, the video is unrealistic and appears cg. Plane background.",
+        "input_video_path" : "mimic_dataset_1k_mp4/demo_0_table_cam.mp4",
+        "sigma_max": 50,
+        "vis": {
+            "input_control": "mimic_dataset_1k_mp4/demo_0_table_cam.mp4",
+            "control_weight": 0.3
+        },
+        "edge": {
+            "control_weight": 0.3
+        },
+        "depth": {
+            "input_control": "mimic_dataset_1k_mp4/demo_0_table_cam_depth.mp4",
+            "control_weight": 0.6
+        },
+        "seg": {
+            "input_control": "mimic_dataset_1k_mp4/demo_0_table_cam_shaded_segmentation.mp4",
+            "control_weight": 0.7
+        }
+    }
+
 MP4 to HDF5 Conversion
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,8 +230,8 @@ Example usage for the cube stacking task:
 .. code:: bash
 
     python scripts/tools/mp4_to_hdf5.py \
-    --input_file datasets/mimic_generated_dataset.hdf5 \
-    --videos_dir datasets/cosmos_dataset_mp4 \
+    --input_file datasets/mimic_dataset_1k.hdf5 \
+    --videos_dir datasets/cosmos_dataset_1k_mp4 \
     --output_file datasets/cosmos_dataset_1k.hdf5
 
 Pre-generated Dataset
@@ -233,7 +270,7 @@ Example usage for the cube stacking task:
 .. code:: bash
 
     python scripts/tools/merge_hdf5_datasets.py \
-    --input_files datasets/mimic_generated_dataset.hdf5 datasets/cosmos_dataset.hdf5 \
+    --input_files datasets/mimic_dataset_1k.hdf5 datasets/cosmos_dataset_1k.hdf5 \
     --output_file datasets/mimic_cosmos_dataset.hdf5
 
 Model Training and Evaluation
@@ -256,13 +293,14 @@ To install the robomimic framework, use the following commands:
 Training an agent
 ^^^^^^^^^^^^^^^^^
 
-Using the generated data, we can now train a visuomotor BC agent for ``Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-v0``:
+Using the generated data, we can now train a visuomotor BC agent for ``Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Cosmos-v0``:
 
 .. code:: bash
 
     ./isaaclab.sh -p scripts/imitation_learning/robomimic/train.py \
-    --task Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-v0 --algo bc \
-    --dataset ./datasets/mimic_cosmos_dataset.hdf5
+    --task Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Cosmos-v0 --algo bc \
+    --dataset ./datasets/mimic_cosmos_dataset.hdf5 \
+    --name bc_rnn_image_franka_stack_mimic_cosmos
 
 .. note::
    By default the trained models and logs will be saved to ``IssacLab/logs/robomimic``.
@@ -310,6 +348,8 @@ Below is an explanation of the different settings used for evaluation:
     :widths: 30 70
     :header-rows: 0
 
+    * - ``--start_epoch``
+      - Epoch of the checkpoint to start the evaluation from. (default: 100)
     * - ``--horizon``
       - Step horizon of each rollout. (default: 400)
     * - ``--num_rollouts``
@@ -339,14 +379,17 @@ Example usage for the cube stacking task:
 .. code:: bash
 
     ./isaaclab.sh -p scripts/imitation_learning/robomimic/robust_eval.py \
-    --task Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-v0 \
-    --input_dir logs/robomimic/Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-v0/bc_rnn_image_franka_stack_mimic_cosmos_table_only/*/models \
-    --log_dir robust_results/bc_rnn_image_franka_stack_mimic_cosmos_table_only \
+    --task Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Cosmos-v0 \
+    --input_dir logs/robomimic/Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Cosmos-v0/bc_rnn_image_franka_stack_mimic_cosmos/*/models \
+    --log_dir robust_results/bc_rnn_image_franka_stack_mimic_cosmos \
     --log_file result \
     --enable_cameras \
     --seeds 0 \
     --num_rollouts 15 \
     --rendering_mode performance
+
+.. note::
+   This script can take over a day or even longer to run (depending on the hardware being used). This behavior is expected.
 
 We use the above script to compare models trained with 1000 Mimic-generated demonstrations, 2000 Mimic-generated demonstrations and 2000 Cosmos-Mimic-generated demonstrations (1000 original mimic + 1000 Cosmos augmented) respectively. We use the same seeds (0, 1000 and 5000) for all three models and provide the metrics (averaged across best checkpoints for each seed) below:
 

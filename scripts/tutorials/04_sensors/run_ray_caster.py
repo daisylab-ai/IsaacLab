@@ -51,7 +51,7 @@ def define_sensor() -> RayCaster:
         prim_path="/World/Origin.*/ball",
         mesh_prim_paths=["/World/ground"],
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(2.0, 2.0)),
-        attach_yaw_only=True,
+        ray_alignment="yaw",
         debug_vis=not args_cli.headless,
     )
     ray_caster = RayCaster(cfg=ray_caster_cfg)
@@ -136,10 +136,8 @@ def main():
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
     sim.set_camera_view([0.0, 15.0, 15.0], [0.0, 0.0, -2.5])
-    # Create scene with stage in memory and then attach to USD context
-    with stage_utils.use_stage(sim.get_initial_stage()):
-        scene_entities = design_scene()
-        attach_stage_to_usd_context()
+    # Design scene
+    scene_entities = design_scene()
     # Play simulator
     sim.reset()
     # Now we are ready!

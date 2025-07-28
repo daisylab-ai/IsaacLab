@@ -1,6 +1,51 @@
 Changelog
 ---------
 
+0.10.42 (2025-07-11)
+~~~~~~~~~~~~~~~~~~~~
+
+Changed
+^^^^^^^
+
+* Organized environment unit tests
+
+
+0.10.41 (2025-07-01)
+~~~~~~~~~~~~~~~~~~~~
+
+Fixed
+^^^^^
+
+* Fixed the rendering settings used for the Mimic-Cosmos pipeline.
+
+
+0.10.40 (2025-06-26)
+~~~~~~~~~~~~~~~~~~~~
+
+Fixed
+^^^^^
+
+* Relaxed upper range pin for protobuf python dependency for more permissive installation.
+
+
+0.10.39 (2025-05-22)
+~~~~~~~~~~~~~~~~~~~~
+
+Fixed
+^^^^^
+
+* Fixed redundant body_names assignment in rough_env_cfg.py for H1 robot.
+
+
+0.10.38 (2025-06-16)
+~~~~~~~~~~~~~~~~~~~~
+
+Changed
+^^^^^^^
+
+* Show available RL library configs on error message when an entry point key is not available for a given task.
+
+
 0.10.37 (2025-05-15)
 ~~~~~~~~~~~~~~~~~~~~
 

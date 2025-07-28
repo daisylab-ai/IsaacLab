@@ -10,8 +10,15 @@ from typing import TYPE_CHECKING
 import isaacsim.core.utils.prims as prim_utils
 import omni.kit.commands
 import omni.log
+from pxr import Gf, Sdf, Usd
+
+# from Isaac Sim 4.2 onwards, pxr.Semantics is deprecated
+try:
+    import Semantics
+except ModuleNotFoundError:
+    from pxr import Semantics
+
 from isaacsim.core.utils.stage import get_current_stage
-from pxr import Gf, Sdf, Semantics, Usd
 
 from isaaclab.sim import converters, schemas
 from isaaclab.sim.utils import (
@@ -32,6 +39,7 @@ def spawn_from_usd(
     cfg: from_files_cfg.UsdFileCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
 ) -> Usd.Prim:
     """Spawn an asset from a USD file and override the settings with the given config.
 
@@ -55,6 +63,7 @@ def spawn_from_usd(
             case the translation specified in the USD file is used.
         orientation: The orientation in (w, x, y, z) to apply to the prim w.r.t. its parent prim. Defaults to None,
             in which case the orientation specified in the USD file is used.
+        **kwargs: Additional keyword arguments, like ``clone_in_fabric``.
 
     Returns:
         The prim of the spawned asset.
@@ -72,6 +81,7 @@ def spawn_from_urdf(
     cfg: from_files_cfg.UrdfFileCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
 ) -> Usd.Prim:
     """Spawn an asset from a URDF file and override the settings with the given config.
 
@@ -95,6 +105,7 @@ def spawn_from_urdf(
             case the translation specified in the generated USD file is used.
         orientation: The orientation in (w, x, y, z) to apply to the prim w.r.t. its parent prim. Defaults to None,
             in which case the orientation specified in the generated USD file is used.
+        **kwargs: Additional keyword arguments, like ``clone_in_fabric``.
 
     Returns:
         The prim of the spawned asset.
@@ -113,6 +124,7 @@ def spawn_ground_plane(
     cfg: from_files_cfg.GroundPlaneCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
 ) -> Usd.Prim:
     """Spawns a ground plane into the scene.
 
@@ -131,6 +143,7 @@ def spawn_ground_plane(
             case the translation specified in the USD file is used.
         orientation: The orientation in (w, x, y, z) to apply to the prim w.r.t. its parent prim. Defaults to None,
             in which case the orientation specified in the USD file is used.
+        **kwargs: Additional keyword arguments, like ``clone_in_fabric``.
 
     Returns:
         The prim of the spawned asset.
@@ -218,6 +231,7 @@ def _spawn_from_usd_file(
     cfg: from_files_cfg.FileCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
 ) -> Usd.Prim:
     """Spawn an asset from a USD file and override the settings with the given config.
 
@@ -234,6 +248,7 @@ def _spawn_from_usd_file(
             case the translation specified in the generated USD file is used.
         orientation: The orientation in (w, x, y, z) to apply to the prim w.r.t. its parent prim. Defaults to None,
             in which case the orientation specified in the generated USD file is used.
+        **kwargs: Additional keyword arguments, like ``clone_in_fabric``.
 
     Returns:
         The prim of the spawned asset.
@@ -246,7 +261,15 @@ def _spawn_from_usd_file(
 
     # check file path exists
     if not stage.ResolveIdentifierToEditTarget(usd_path):
-        raise FileNotFoundError(f"USD file not found at path: '{usd_path}'.")
+        if "4.5" in usd_path:
+            usd_5_0_path = (
+                usd_path.replace("http", "https").replace("-production.", "-staging.").replace("/4.5", "/5.0")
+            )
+            if not stage.ResolveIdentifierToEditTarget(usd_5_0_path):
+                raise FileNotFoundError(f"USD file not found at path at either: '{usd_path}' or '{usd_5_0_path}'.")
+            usd_path = usd_5_0_path
+        else:
+            raise FileNotFoundError(f"USD file not found at path at: '{usd_path}'.")
     # spawn asset if it doesn't exist.
     if not prim_utils.is_prim_path_valid(prim_path):
         # add prim as reference to stage

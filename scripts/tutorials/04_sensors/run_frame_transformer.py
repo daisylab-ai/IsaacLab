@@ -170,10 +170,8 @@ def main():
     sim = SimulationContext(sim_cfg)
     # Set main camera
     sim.set_camera_view(eye=[2.5, 2.5, 2.5], target=[0.0, 0.0, 0.0])
-    # Create scene with stage in memory and then attach to USD context
-    with stage_utils.use_stage(sim.get_initial_stage()):
-        scene_entities = design_scene()
-        attach_stage_to_usd_context()
+    # Design scene
+    scene_entities = design_scene()
     # Play the simulator
     sim.reset()
     # Now we are ready!

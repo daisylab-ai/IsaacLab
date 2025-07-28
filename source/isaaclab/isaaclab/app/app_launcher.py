@@ -18,10 +18,7 @@ import os
 import re
 import signal
 import sys
-import toml
 from typing import Any, Literal
-
-import flatdict
 
 with contextlib.suppress(ModuleNotFoundError):
     import isaacsim  # noqa: F401
@@ -362,16 +359,6 @@ class AppLauncher:
             ),
         )
         # special flag for backwards compatibility
-        arg_group.add_argument(
-            "--use_isaacsim_45",
-            type=bool,
-            default=False,
-            help=(
-                "Uses previously version of Isaac Sim 4.5. This will reference the Isaac Sim 4.5 compatible app files"
-                " and will result in some features being unavailable. For full feature set, please update to Isaac Sim"
-                " 5.0."
-            ),
-        )
 
         # Corresponding to the beginning of the function,
         # if we have removed -h/--help handling, we add it back.
@@ -697,7 +684,8 @@ class AppLauncher:
             # pass command line variable to kit
             sys.argv.append(f"--/plugins/carb.tasking.plugin/threadCount={num_threads_per_process}")
 
-        # set physics and rendering device
+        # set rendering device. We do not need to set physics_gpu because it will automatically pick the same one
+        # as the active_gpu device. Setting physics_gpu explicitly may result in a different device to be used.
         launcher_args["physics_gpu"] = self.device_id
         launcher_args["active_gpu"] = self.device_id
 
@@ -713,7 +701,8 @@ class AppLauncher:
         kit_app_exp_path = os.environ["EXP_PATH"]
         isaaclab_app_exp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), *[".."] * 4, "apps")
         # For Isaac Sim 4.5 compatibility, we use the 4.5 app files in a different folder
-        if launcher_args.get("use_isaacsim_45", False):
+        # if launcher_args.get("use_isaacsim_45", False):
+        if self.is_isaac_sim_version_4_5():
             isaaclab_app_exp_path = os.path.join(isaaclab_app_exp_path, "isaacsim_4_5")
 
         if self._sim_experience_file == "":
@@ -769,7 +758,7 @@ class AppLauncher:
         if recording_enabled:
             if self._headless:
                 raise ValueError("Animation recording is not supported in headless mode.")
-            if launcher_args.get("use_isaacsim_45", False):
+            if self.is_isaac_sim_version_4_5():
                 raise RuntimeError(
                     "Animation recording is not supported in Isaac Sim 4.5. Please update to Isaac Sim 5.0."
                 )
@@ -873,7 +862,7 @@ class AppLauncher:
                 play_button_group._stop_button = None  # type: ignore
 
     def _set_rendering_mode_settings(self, launcher_args: dict) -> None:
-        """Set RTX rendering settings to the values from the selected preset."""
+        """Store RTX rendering mode in carb settings."""
         import carb
         from isaacsim.core.utils.carb import set_carb_setting
 
@@ -887,18 +876,36 @@ class AppLauncher:
         if rendering_mode is None:
             rendering_mode = "balanced"
 
-        # parse preset file
-        repo_path = os.path.join(carb.tokens.get_tokens_interface().resolve("${app}"), "..")
-        preset_filename = os.path.join(repo_path, f"apps/rendering_modes/{rendering_mode}.kit")
-        with open(preset_filename) as file:
-            preset_dict = toml.load(file)
-        preset_dict = dict(flatdict.FlatDict(preset_dict, delimiter="."))
+        # store rendering mode in carb settings
+        carb_settings = carb.settings.get_settings()
+        set_carb_setting(carb_settings, "/isaaclab/rendering/rendering_mode", rendering_mode)
 
-        # set presets
-        carb_setting = carb.settings.get_settings()
-        for key, value in preset_dict.items():
-            key = "/" + key.replace(".", "/")  # convert to carb setting format
-            set_carb_setting(carb_setting, key, value)
+    def _set_animation_recording_settings(self, launcher_args: dict) -> None:
+        """Store animation recording settings in carb settings."""
+        import carb
+        from isaacsim.core.utils.carb import set_carb_setting
+
+        # check if recording is enabled
+        recording_enabled = launcher_args.get("anim_recording_enabled", False)
+        if not recording_enabled:
+            return
+
+        # arg checks
+        if launcher_args.get("anim_recording_start_time") >= launcher_args.get("anim_recording_stop_time"):
+            raise ValueError(
+                f"'anim_recording_start_time' {launcher_args.get('anim_recording_start_time')} must be less than"
+                f" 'anim_recording_stop_time' {launcher_args.get('anim_recording_stop_time')}"
+            )
+
+        # grab config
+        start_time = launcher_args.get("anim_recording_start_time")
+        stop_time = launcher_args.get("anim_recording_stop_time")
+
+        # store config in carb settings
+        carb_settings = carb.settings.get_settings()
+        set_carb_setting(carb_settings, "/isaaclab/anim_recording/enabled", recording_enabled)
+        set_carb_setting(carb_settings, "/isaaclab/anim_recording/start_time", start_time)
+        set_carb_setting(carb_settings, "/isaaclab/anim_recording/stop_time", stop_time)
 
     def _set_animation_recording_settings(self, launcher_args: dict) -> None:
         """Set animation recording settings."""
@@ -933,6 +940,30 @@ class AppLauncher:
         self._app.close()
         # raise the error for keyboard interrupt
         raise KeyboardInterrupt
+
+    def is_isaac_sim_version_4_5(self) -> bool:
+        if not hasattr(self, "_is_sim_ver_4_5"):
+            # 1) Try to read the VERSION file (for manual / binary installs)
+            version_path = os.path.abspath(os.path.join(os.path.dirname(isaacsim.__file__), "../../VERSION"))
+            if os.path.isfile(version_path):
+                with open(version_path) as f:
+                    ver = f.readline().strip()
+                    if ver.startswith("4.5"):
+                        self._is_sim_ver_4_5 = True
+                        return True
+
+            # 2) Fall back to metadata (for pip installs)
+            from importlib.metadata import version as pkg_version
+
+            try:
+                ver = pkg_version("isaacsim")
+                if ver.startswith("4.5"):
+                    self._is_sim_ver_4_5 = True
+                else:
+                    self._is_sim_ver_4_5 = False
+            except Exception:
+                self._is_sim_ver_4_5 = False
+        return self._is_sim_ver_4_5
 
     def _hide_play_button(self, flag):
         """Hide/Unhide the play button in the toolbar.

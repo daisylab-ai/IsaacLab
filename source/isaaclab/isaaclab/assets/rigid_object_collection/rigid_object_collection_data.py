@@ -10,6 +10,7 @@ import omni.physics.tensors.impl.api as physx
 from isaacsim.core.utils.stage import get_current_stage_id
 
 import isaaclab.utils.math as math_utils
+from isaaclab.sim.utils import get_current_stage_id
 from isaaclab.utils.buffers import TimestampedBuffer
 
 
@@ -154,7 +155,7 @@ class RigidObjectCollectionData:
             velocity = self.object_com_vel_w.clone()
             # adjust linear velocity to link from center of mass
             velocity[..., :3] += torch.linalg.cross(
-                velocity[..., 3:], math_utils.quat_rotate(self.object_link_quat_w, -self.object_com_pos_b), dim=-1
+                velocity[..., 3:], math_utils.quat_apply(self.object_link_quat_w, -self.object_com_pos_b), dim=-1
             )
             # set the buffer data and timestamp
             self._object_link_vel_w.data = velocity

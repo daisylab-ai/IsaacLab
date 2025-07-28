@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 import torch
-import weakref
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -15,7 +14,7 @@ import omni.kit.app
 import omni.log
 import omni.physics.tensors.impl.api as physx
 import omni.timeline
-from isaacsim.core.simulation_manager import IsaacEvents, SimulationManager
+from isaacsim.core.simulation_manager import SimulationManager
 from pxr import UsdPhysics
 
 import isaaclab.sim as sim_utils
@@ -92,23 +91,8 @@ class RigidObjectCollection(AssetBase):
         # stores object names
         self._object_names_list = []
 
-        # note: Use weakref on all callbacks to ensure that this object can be deleted when its destructor is called.
-        # add callbacks for stage play/stop
-        # The order is set to 10 which is arbitrary but should be lower priority than the default order of 0
-        timeline_event_stream = omni.timeline.get_timeline_interface().get_timeline_event_stream()
-        self._initialize_handle = timeline_event_stream.create_subscription_to_pop_by_type(
-            int(omni.timeline.TimelineEventType.PLAY),
-            lambda event, obj=weakref.proxy(self): obj._initialize_callback(event),
-            order=10,
-        )
-        self._invalidate_initialize_handle = timeline_event_stream.create_subscription_to_pop_by_type(
-            int(omni.timeline.TimelineEventType.STOP),
-            lambda event, obj=weakref.proxy(self): obj._invalidate_initialize_callback(event),
-            order=10,
-        )
-        self._prim_deletion_callback_id = SimulationManager.register_callback(
-            self._on_prim_deletion, event=IsaacEvents.PRIM_DELETION
-        )
+        # register various callback functions
+        self._register_callbacks()
         self._debug_vis_handle = None
 
     """
@@ -317,6 +301,18 @@ class RigidObjectCollection(AssetBase):
             self._data.object_link_state_w[env_ids[:, None], object_ids, :7] = object_pose.clone()
         if self._data._object_state_w.data is not None:
             self._data.object_state_w[env_ids[:, None], object_ids, :7] = object_pose.clone()
+        if self._data._object_com_state_w.data is not None:
+            # get CoM pose in link frame
+            com_pos_b = self.data.object_com_pos_b[env_ids[:, None], object_ids]
+            com_quat_b = self.data.object_com_quat_b[env_ids[:, None], object_ids]
+            com_pos, com_quat = math_utils.combine_frame_transforms(
+                object_pose[..., :3],
+                object_pose[..., 3:7],
+                com_pos_b,
+                com_quat_b,
+            )
+            self._data.object_com_state_w[env_ids[:, None], object_ids, :3] = com_pos
+            self._data.object_com_state_w[env_ids[:, None], object_ids, 3:7] = com_quat
 
         # convert the quaternion from wxyz to xyzw
         poses_xyzw = self._data.object_link_pose_w.clone()
@@ -415,6 +411,8 @@ class RigidObjectCollection(AssetBase):
             self._data.object_com_state_w[env_ids[:, None], object_ids, 7:] = object_velocity.clone()
         if self._data._object_state_w.data is not None:
             self._data.object_state_w[env_ids[:, None], object_ids, 7:] = object_velocity.clone()
+        if self._data._object_link_state_w.data is not None:
+            self._data.object_link_state_w[env_ids[:, None], object_ids, 7:] = object_velocity.clone()
         # make the acceleration zero to prevent reporting old values
         self._data.object_com_acc_w[env_ids[:, None], object_ids] = 0.0
 

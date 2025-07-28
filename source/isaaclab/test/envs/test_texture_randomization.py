@@ -128,6 +128,36 @@ class EventCfg:
 
 
 @configclass
+class EventCfgFallback:
+    """Configuration for events that tests the fallback mechanism."""
+
+    # Test fallback when /visuals pattern doesn't match
+    test_fallback_texture_randomizer = EventTerm(
+        func=mdp.randomize_visual_texture_material,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["slider"]),
+            "texture_paths": [
+                f"{NVIDIA_NUCLEUS_DIR}/Materials/Base/Wood/Bamboo_Planks/Bamboo_Planks_BaseColor.png",
+                f"{NVIDIA_NUCLEUS_DIR}/Materials/Base/Wood/Cherry/Cherry_BaseColor.png",
+            ],
+            "event_name": "test_fallback_texture_randomizer",
+            "texture_rotation": (0.0, 0.0),
+        },
+    )
+
+    reset_cart_position = EventTerm(
+        func=mdp.reset_joints_by_offset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]),
+            "position_range": (-1.0, 1.0),
+            "velocity_range": (-0.1, 0.1),
+        },
+    )
+
+
+@configclass
 class CartpoleEnvCfg(ManagerBasedEnvCfg):
     """Configuration for the cartpole environment."""
 

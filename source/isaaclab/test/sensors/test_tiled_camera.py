@@ -25,7 +25,13 @@ import isaacsim.core.utils.stage as stage_utils
 import omni.replicator.core as rep
 import pytest
 from isaacsim.core.prims import SingleGeometryPrim, SingleRigidPrim
-from pxr import Gf, Semantics, UsdGeom
+from pxr import Gf, UsdGeom
+
+# from Isaac Sim 4.2 onwards, pxr.Semantics is deprecated
+try:
+    import Semantics
+except ModuleNotFoundError:
+    from pxr import Semantics
 
 import isaaclab.sim as sim_utils
 from isaaclab.sensors.camera import Camera, CameraCfg, TiledCamera, TiledCameraCfg
@@ -1587,10 +1593,15 @@ def test_frame_offset_small_resolution(setup_camera):
     camera_cfg = copy.deepcopy(camera_cfg)
     camera_cfg.height = 80
     camera_cfg.width = 80
+    camera_cfg.offset.pos = (0.0, 0.0, 0.5)
     tiled_camera = TiledCamera(camera_cfg)
     # play sim
     sim.reset()
     # simulate some steps first to make sure objects are settled
+    stage = stage_utils.get_current_stage()
+    for i in range(10):
+        prim = stage.GetPrimAtPath(f"/World/Objects/Obj_{i:02d}")
+        UsdGeom.Gprim(prim).GetOrderedXformOps()[2].Set(Gf.Vec3d(1.0, 1.0, 1.0))
     for i in range(100):
         # step simulation
         sim.step()
@@ -1600,7 +1611,6 @@ def test_frame_offset_small_resolution(setup_camera):
     image_before = tiled_camera.data.output["rgb"].clone() / 255.0
 
     # update scene
-    stage = stage_utils.get_current_stage()
     for i in range(10):
         prim = stage.GetPrimAtPath(f"/World/Objects/Obj_{i:02d}")
         color = Gf.Vec3f(0, 0, 0)
@@ -1615,7 +1625,7 @@ def test_frame_offset_small_resolution(setup_camera):
     image_after = tiled_camera.data.output["rgb"].clone() / 255.0
 
     # check difference is above threshold
-    assert torch.abs(image_after - image_before).mean() > 0.01  # images of same color should be below 0.001
+    assert torch.abs(image_after - image_before).mean() > 0.1  # images of same color should be below 0.01
 
 
 def test_frame_offset_large_resolution(setup_camera):
@@ -1681,6 +1691,8 @@ def _populate_scene():
     cfg.func("/World/Light/WhiteSphere", cfg, translation=(-4.5, 3.5, 10.0))
     # Random objects
     random.seed(0)
+    np.random.seed(0)
+    torch.manual_seed(0)
     for i in range(10):
         # sample random position
         position = np.random.rand(3) - np.asarray([0.05, 0.05, -1.0])

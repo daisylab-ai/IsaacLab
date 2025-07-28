@@ -60,16 +60,16 @@ System Requirements
 
 Prior to using CloudXR with Isaac Lab, please review the following system requirements:
 
-  * Isaac Lab workstation (Linux)
+  * Isaac Lab workstation
 
-    * Ubuntu 22.04
+    * Ubuntu 22.04 or Ubuntu 24.04
     * `Docker`_ 26.0.0+, `Docker Compose`_ 2.25.0+, and the `NVIDIA Container Toolkit`_. Refer to
       the Isaac Lab :ref:`deployment-docker` for how to install.
     * NVIDIA Driver version 550 or greater
     * Required for best performance: 16 cores Intel Core i9, X-series or higher AMD Ryzen 9,
       Threadripper or higher
     * Required for best performance: 64GB RAM
-    * Required for best performance: 2x RTX 6000 Ada GPUs (or equivalent)
+    * Required for best performance: 2x RTX PRO 6000 GPUs (or equivalent e.g. 2x RTX 5090)
 
   * Apple Vision Pro
 
@@ -85,11 +85,14 @@ Prior to using CloudXR with Isaac Lab, please review the following system requir
 
   * Wifi 6 capable router
 
-    * A strong wireless connection is essential for a high-quality streaming experience
+    * A strong wireless connection is essential for a high-quality streaming experience. Refer to the
+      requirements of `Omniverse Spatial Streaming`_ for more details.
     * We recommend using a dedicated router, as concurrent usage will degrade quality
     * The Apple Vision Pro and Isaac Lab workstation must be IP-reachable from one another (note:
       many institutional wireless networks will prevent devices from reaching each other, resulting
       in the Apple Vision Pro being unable to find the Isaac Lab workstation on the network)
+
+.. _`Omniverse Spatial Streaming`: https://docs.omniverse.nvidia.com/avp/latest/setup-network.html
 
 
 .. _run-isaac-lab-with-the-cloudxr-runtime:
@@ -355,7 +358,7 @@ Back on your Apple Vision Pro:
 
 #. Teleoperate the simulated robot by moving your hands.
 
-   .. figure:: ../_static/setup/cloudxr_bimanual_teleop.gif
+   .. figure:: https://download.isaacsim.omniverse.nvidia.com/isaaclab/images/cloudxr_bimanual_teleop.gif
       :align: center
       :alt: Isaac Lab teleoperation of a bimanual dexterous robot with CloudXR
 

@@ -29,28 +29,13 @@ pip install route using virtual environments.
 
 To begin, we first define our virtual environment.
 
-.. tab-set::
-    :sync-group: os
 
-    .. tab-item:: :icon:`fa-brands fa-linux` Linux
-        :sync: linux
+.. code-block:: bash
 
-        .. code-block:: bash
-
-            # create a virtual environment named env_isaaclab with python3.11
-            python3.11 -m venv env_isaaclab
-            # activate the virtual environment
-            source env_isaaclab/bin/activate
-
-    .. tab-item:: :icon:`fa-brands fa-windows` Windows
-        :sync: windows
-
-        .. code-block:: batch
-
-            # create a virtual environment named env_isaaclab with python3.11
-            python3.11 -m venv env_isaaclab
-            # activate the virtual environment
-            env_isaaclab\Scripts\activate
+    # create a virtual environment named env_isaaclab with python3.11
+    conda create -n env_isaaclab python=3.11
+    # activate the virtual environment
+    conda activate env_isaaclab
 
 Before we can install Isaac Sim, we need to make sure pip is updated.  To update pip, run
 

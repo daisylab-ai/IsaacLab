@@ -7,11 +7,8 @@ from __future__ import annotations
 
 import torch
 import warnings
-import weakref
 from typing import TYPE_CHECKING
 
-import omni.timeline
-from isaacsim.core.simulation_manager import IsaacEvents, SimulationManager
 from isaacsim.core.utils.extensions import enable_extension
 from isaacsim.core.version import get_version
 
@@ -68,23 +65,9 @@ class SurfaceGripper(AssetBase):
         # flag for whether the sensor is initialized
         self._is_initialized = False
         self._debug_vis_handle = None
-        # note: Use weakref on callbacks to ensure that this object can be deleted when its destructor is called.
-        # add callbacks for stage play/stop
-        # The order is set to 10 which is arbitrary but should be lower priority than the default order of 0
-        timeline_event_stream = omni.timeline.get_timeline_interface().get_timeline_event_stream()
-        self._initialize_handle = timeline_event_stream.create_subscription_to_pop_by_type(
-            int(omni.timeline.TimelineEventType.PLAY),
-            lambda event, obj=weakref.proxy(self): obj._initialize_callback(event),
-            order=10,
-        )
-        self._invalidate_initialize_handle = timeline_event_stream.create_subscription_to_pop_by_type(
-            int(omni.timeline.TimelineEventType.STOP),
-            lambda event, obj=weakref.proxy(self): obj._invalidate_initialize_callback(event),
-            order=10,
-        )
-        self._prim_deletion_callback_id = SimulationManager.register_callback(
-            self._on_prim_deletion, event=IsaacEvents.PRIM_DELETION
-        )
+
+        # register various callback functions
+        self._register_callbacks()
 
     """
     Properties

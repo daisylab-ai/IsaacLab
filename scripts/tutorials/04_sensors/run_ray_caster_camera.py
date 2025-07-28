@@ -165,14 +165,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene_entities: dict):
 def main():
     """Main function."""
     # Load kit helper
-    sim_cfg = sim_utils.SimulationCfg(create_stage_in_memory=True)
+    sim_cfg = sim_utils.SimulationCfg()
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
     sim.set_camera_view([2.5, 2.5, 3.5], [0.0, 0.0, 0.0])
-    # Create scene with stage in memory and then attach to USD context
-    with stage_utils.use_stage(sim.get_initial_stage()):
-        scene_entities = design_scene()
-        attach_stage_to_usd_context()
+    # Design scene
+    scene_entities = design_scene()
     # Play simulator
     sim.reset()
     # Now we are ready!

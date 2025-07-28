@@ -10,6 +10,7 @@ import omni.physics.tensors.impl.api as physx
 from isaacsim.core.utils.stage import get_current_stage_id
 
 import isaaclab.utils.math as math_utils
+from isaaclab.sim.utils import get_current_stage_id
 from isaaclab.utils.buffers import TimestampedBuffer
 
 
